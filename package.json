@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/samuelgoto/fedcm.js/issues"
   },
-  "homepage": "https://github.com/samuelgoto/fedcm.js#readme"
+  "homepage": "https://github.com/samuelgoto/fedcm.js#readme",
+  "dependencies": {
+    "express": "^4.19.2"
+  }
 }
