@@ -1,0 +1,19 @@
+{
+  "name": "fedcm.js",
+  "version": "1.0.0",
+  "description": "A FedCM IdP in NodeJS",
+  "main": "index.js",
+  "scripts": {
+    "test": "test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samuelgoto/fedcm.js.git"
+  },
+  "author": "Sam Goto (goto@chromium.org)",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/samuelgoto/fedcm.js/issues"
+  },
+  "homepage": "https://github.com/samuelgoto/fedcm.js#readme"
+}
