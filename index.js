@@ -8,17 +8,10 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-let cors_options = {
-  setHeaders: function (res, path, stat) {
-    res.set('Access-Control-Allow-Origin', 'null')
-  },
-  maxAge: '0'
-};
-
 app.use('/.well-known/web-identity', (req, res) => {
   res.send({
     "provider_urls": [
-      "/test/fedcm.json"
+      "https://fedcm.glitch.me/test/fedcm.json"
     ]
   });
 })
@@ -66,16 +59,42 @@ app.use("/client_metadata", (req, res) => {
 
 
 app.post("/id_assertion_endpoint", (request, response) => {
-  response.set('Access-Control-Allow-Origin', 'null');
+  response.set('Access-Control-Allow-Origin', request.headers.origin);
   response.set('Access-Control-Allow-Credentials', 'true');
-
+  
   const subject = request.body["account_id"];
+    
   response.json({
-    "token" : "__a_fake_id_token__"
+    "token" : JSON.stringify({
+      code: "hello world",
+      metadata_endpoint: "https://fedcm.glitch.me/indieauth/metadata_endpoint"
+    })
   });
 });
 
-app.use(express.static("public", cors_options));
+
+app.get("/indieauth/metadata_endpoint", (req, res) => {
+  res.send({
+    "issuer": "https://fedcm.glitch.me/",
+    "token_endpoint": "https://fedcm.glitch.me/indieauth/token_endpoint",
+  });
+});
+
+app.post("/indieauth/token_endpoint", (req, res) => {
+  const {grant_type, code, client_id, code_verifier} = req.body;
+  res.send({
+    "me": "https://code.sgo.to",
+    "profile": {
+      "name": "Sam Goto",
+      "url": "https://code.sgo.to",
+      "photo": "https://pbs.twimg.com/profile_images/920758039325564928/vp0Px4kC_400x400.jpg",
+      "email": "samuelgoto@gmail.com"
+    }
+  });
+});
+
+
+app.use(express.static("public"));
 
 app.use("/login", (req, res) => {
     res.set("Set-Login", "logged-in");
@@ -88,14 +107,16 @@ app.use("/logout", (req, res) => {
 });
 
 
-app.get("/", (req, res) => {
-    // response.sendFile(__dirname + "/public/index.html");
-    res.send("hello world");
+app.get("/", (request, response) => {
+  response.sendFile(__dirname + "/public/index.html");
 });
 
 // listen for requests :)
 const listener = app.listen(process.env.PORT, () => {
   console.log("Your app is listening on port " + listener.address().port);
 });
+
+
+
 
 
