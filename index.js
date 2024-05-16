@@ -81,6 +81,7 @@ app.get("/indieauth/metadata_endpoint", (req, res) => {
 });
 
 app.post("/indieauth/token_endpoint", (req, res) => {
+  console.log("hello world from the token endpoint!");
   const {grant_type, code, client_id, code_verifier} = req.body;
   res.send({
     "me": "https://code.sgo.to",
@@ -108,7 +109,14 @@ app.use("/logout", (req, res) => {
 
 
 app.get("/", (request, response) => {
-  response.sendFile(__dirname + "/public/index.html");
+  response.send(`
+    <ul>
+      <li><a href="javascript:navigator.login.setStatus('logged-in')">Sign-in</a></li>
+      <li><a href="javascript:navigator.login.setStatus('logged-out')">Sign-out</a></li>
+      <li><a href="javascript:IdentityProvider.register('https://fedcm.glitch.me/test/fedcm.json')">Register</a></li>
+      <li><a href="javascript:IdentityProvider.unregister('https://fedcm.glitch.me/test/fedcm.json')">Unregister</a></li>
+    </ul>  
+  `);
 });
 
 // listen for requests :)
