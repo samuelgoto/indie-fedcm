@@ -15,7 +15,7 @@ app.use(
     secret: process.env.COOKIE_SECRET,
     resave: true,
     proxy: true,
-    cookie: {
+    cookie: { 
       maxAge: 24 * 60 * 60 * 1000 * 7, //seven days
       secure: true,
       sameSite: "None",
@@ -27,6 +27,11 @@ app.use(
 function relative(req, path) {
   return `https://${req.host}${path}`;
 }
+
+app.get("/:url/foo", async (req, res) => {
+  console.log(req.params.url);
+  res.send("hi");
+});
 
 app.use("/.well-known/web-identity", async (req, res) => {
   res.send({
@@ -45,7 +50,7 @@ app.get("/callback", async (req, res) => {
 
   const accessToken = await fetch(
     `https://github.com/login/oauth/access_token?${params}`
-  );
+  ); 
 
   const { access_token, scope, token_type, error } = querystring.parse(
     await accessToken.text()
@@ -100,8 +105,19 @@ app.get("/callback", async (req, res) => {
   req.session.username = login;
   req.session.photo = avatar_url;
   req.session.name = name;
-
-  res.redirect("/");
+  
+  // TODO(goto): it is a bit awkward that I have to send a HTML
+  // file just to call IdentityProvider.close(). Maybe we should
+  // have a HTTP header version of it.
+  res.send(`
+  <script>
+    if (IdentityProvider) {
+      // Signal to the browser that the user has signed in.
+      IdentityProvider.close(); 
+    }
+    window.location.href = "/";
+  </script>
+  `);
 });
 
 app.get("/login", async (req, res) => {
@@ -147,8 +163,7 @@ app.use("/test/fedcm.json", function (req, res, next) {
     id_assertion_endpoint: "/id_assertion_endpoint",
     revocation_endpoint: "/revoke_endpoint.json",
     metrics_endpoint: "/metrics_endpoint.json",
-    signin_url: "/signin",
-    login_url: "/signin",
+    login_url: "/",
     branding: {
       icons: [
         {
@@ -240,13 +255,13 @@ app.get("/indieauth/metadata_endpoint", (req, res) => {
 app.post("/indieauth/token_endpoint", (req, res) => {
   console.log("hello world from the token endpoint!");
   const { grant_type, code, client_id, code_verifier } = req.body;
-  
+
   if (!tokens[code]) {
     return error(res, `Unknown code: ${code}.`);
   }
-  
-  const {id, account_id, email, name, given_name, picture} = tokens[code];
-    
+
+  const { id, account_id, email, name, given_name, picture } = tokens[code];
+
   res.send({
     me: id,
     profile: {
@@ -272,7 +287,8 @@ app.get("/", (req, res) => {
   if (!req.session.loggedin) {
     res.send(`
       You are logged-out. 
-      <form action='/login'><input name='url'><input type='submit' value='login'></form>
+      <br><br>Enter your IndieAuth domain here to login:
+      <br><br><form action='/login'><input name='url'><input type='submit' value='login'></form>
     `);
     return;
   }
@@ -280,8 +296,14 @@ app.get("/", (req, res) => {
   res.send(`
     You are logged-in as ${url}. <a href="/logout">logout</a>.
     <ul>
-      <li><a href="javascript:IdentityProvider.register('${relative(req, "/test/fedcm.json")}')">Register</a></li>
-      <li><a href="javascript:IdentityProvider.unregister('${relative(req, "/test/fedcm.json")}')">Unregister</a></li>
+      <li><a href="javascript:IdentityProvider.register('${relative(
+        req,
+        "/test/fedcm.json"
+      )}')">Register</a></li>
+      <li><a href="javascript:IdentityProvider.unregister('${relative(
+        req,
+        "/test/fedcm.json"
+      )}')">Unregister</a></li>
     </ul>
   `);
 });
@@ -291,15 +313,16 @@ const listener = app.listen(process.env.PORT, () => {
   if (!process.env.GITHUB_CLIENT_ID) {
     throw new Error("You need to set a GITHUB_CLIENT_ID environment variable");
   }
-  
+
   if (!process.env.GITHUB_CLIENT_SECRET) {
-    throw new Error("You need to set a GITHUB_CLIENT_SECRET environment variable");
+    throw new Error(
+      "You need to set a GITHUB_CLIENT_SECRET environment variable"
+    );
   }
-  
+
   if (!process.env.COOKIE_SECRET) {
     throw new Error("You need to set a COOKIE_SECRET environment variable");
   }
-  
 
   console.log("Your app is listening on port " + listener.address().port);
 });
