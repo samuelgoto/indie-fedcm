@@ -10,21 +10,27 @@ app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(session({
-  secret: process.env.COOKIE_SECRET,
-  resave: true,
-  proxy: true,
-  cookie: {
-    maxAge: 24 * 60 * 60 * 1000 * 7, //seven days
-    secure: true,
-    sameSite: 'None'
-  },
-  saveUninitialized: true
-}));
+app.use(
+  session({
+    secret: process.env.COOKIE_SECRET,
+    resave: true,
+    proxy: true,
+    cookie: {
+      maxAge: 24 * 60 * 60 * 1000 * 7, //seven days
+      secure: true,
+      sameSite: "None",
+    },
+    saveUninitialized: true,
+  })
+);
+
+function relative(req, path) {
+  return `https://${req.host}${path}`;
+}
 
 app.use("/.well-known/web-identity", async (req, res) => {
   res.send({
-    provider_urls: ["https://fedcm.glitch.me/test/fedcm.json"],
+    provider_urls: [relative(req, "/test/fedcm.json")],
   });
 });
 
@@ -78,7 +84,7 @@ app.get("/callback", async (req, res) => {
 
   const usernames = github.map((url) => new URL(url).pathname.substring(1));
 
-  const { login, avatar_url, name, blog, email} = await user.json();
+  const { login, avatar_url, name, blog, email } = await user.json();
 
   if (!usernames.includes(login)) {
     res.send(
@@ -108,7 +114,7 @@ app.get("/login", async (req, res) => {
 
   const params = querystring.stringify({
     client_id: process.env.GITHUB_CLIENT_ID,
-    redirect_uri: "https://fedcm.glitch.me/callback",
+    redirect_uri: relative(req, "/callback"),
     scope: ["read:user", "user:email"].join(" "), // space seperated string
     allow_signup: true,
     state: url,
@@ -144,9 +150,11 @@ app.use("/test/fedcm.json", function (req, res, next) {
     signin_url: "/signin",
     login_url: "/signin",
     branding: {
-      icons: [{
+      icons: [
+        {
           url: "https://static.thenounproject.com/png/362206-200.png",
-      }],
+        },
+      ],
     },
   });
 });
@@ -156,14 +164,14 @@ function error(res, message) {
 }
 
 app.use("/accounts", (req, res) => {
-  const {loggedin, url} = req.session;
-  
+  const { loggedin, url } = req.session;
+
   if (!loggedin) {
     return error(res, {});
   }
 
-  const {username, name, email, photo} = req.session;
-  
+  const { username, name, email, photo } = req.session;
+
   res.send({
     accounts: [
       {
@@ -186,38 +194,66 @@ app.use("/client_metadata", (req, res) => {
   });
 });
 
-app.post("/id_assertion_endpoint", (request, response) => {
-  response.set("Access-Control-Allow-Origin", request.headers.origin);
-  response.set("Access-Control-Allow-Credentials", "true");
+const tokens = {};
 
-  const subject = request.body["account_id"];
+app.post("/id_assertion_endpoint", (req, res) => {
+  const { loggedin, url } = req.session;
 
-  response.json({
+  if (!loggedin) {
+    return error(res, {});
+  }
+
+  res.set("Access-Control-Allow-Origin", req.headers.origin);
+  res.set("Access-Control-Allow-Credentials", "true");
+
+  const subject = req.body["account_id"];
+
+  const code = Math.random();
+
+  const { username, name, email, photo } = req.session;
+
+  tokens[code] = {
+    url: url,
+    id: url,
+    account_id: username,
+    email: email ? email : url,
+    name: name,
+    given_name: name,
+    picture: photo,
+  };
+
+  res.json({
     token: JSON.stringify({
-      code: "hello world",
-      metadata_endpoint: "https://fedcm.glitch.me/indieauth/metadata_endpoint",
+      code: code,
+      metadata_endpoint: relative(req, "/indieauth/metadata_endpoint"),
     }),
   });
 });
 
 app.get("/indieauth/metadata_endpoint", (req, res) => {
   res.send({
-    issuer: "https://fedcm.glitch.me/",
-    token_endpoint: "https://fedcm.glitch.me/indieauth/token_endpoint",
+    issuer: relative(req, "/"),
+    token_endpoint: relative(req, "/indieauth/token_endpoint"),
   });
 });
 
 app.post("/indieauth/token_endpoint", (req, res) => {
   console.log("hello world from the token endpoint!");
   const { grant_type, code, client_id, code_verifier } = req.body;
+  
+  if (!tokens[code]) {
+    return error(res, `Unknown code: ${code}.`);
+  }
+  
+  const {id, account_id, email, name, given_name, picture} = tokens[code];
+    
   res.send({
-    me: "https://code.sgo.to",
+    me: id,
     profile: {
-      name: "Sam Goto",
-      url: "https://code.sgo.to",
-      photo:
-        "https://pbs.twimg.com/profile_images/920758039325564928/vp0Px4kC_400x400.jpg",
-      email: "samuelgoto@gmail.com",
+      name: name,
+      url: id,
+      photo: picture,
+      email: email,
     },
   });
 });
@@ -231,26 +267,39 @@ app.use("/logout", (req, res) => {
 });
 
 app.get("/", (req, res) => {
-  const {loggedin, url} = req.session;
+  const { loggedin, url } = req.session;
 
   if (!req.session.loggedin) {
     res.send(`
       You are logged-out. 
       <form action='/login'><input name='url'><input type='submit' value='login'></form>
-    `);    
+    `);
     return;
   }
 
   res.send(`
     You are logged-in as ${url}. <a href="/logout">logout</a>.
     <ul>
-      <li><a href="javascript:IdentityProvider.register('https://fedcm.glitch.me/test/fedcm.json')">Register</a></li>
-      <li><a href="javascript:IdentityProvider.unregister('https://fedcm.glitch.me/test/fedcm.json')">Unregister</a></li>
+      <li><a href="javascript:IdentityProvider.register('${relative(req, "/test/fedcm.json")}')">Register</a></li>
+      <li><a href="javascript:IdentityProvider.unregister('${relative(req, "/test/fedcm.json")}')">Unregister</a></li>
     </ul>
   `);
 });
 
 // listen for requests :)
 const listener = app.listen(process.env.PORT, () => {
+  if (!process.env.GITHUB_CLIENT_ID) {
+    throw new Error("You need to set a GITHUB_CLIENT_ID environment variable");
+  }
+  
+  if (!process.env.GITHUB_CLIENT_SECRET) {
+    throw new Error("You need to set a GITHUB_CLIENT_SECRET environment variable");
+  }
+  
+  if (!process.env.COOKIE_SECRET) {
+    throw new Error("You need to set a COOKIE_SECRET environment variable");
+  }
+  
+
   console.log("Your app is listening on port " + listener.address().port);
 });
