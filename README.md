@@ -1,4 +1,4 @@
-# fedcm.js
+# indie-fedcm
 
 This is a static IndieAuth server that exposes itself as a FedCM IdP.
 
