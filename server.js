@@ -337,33 +337,29 @@ app.use("/logout", (req, res) => {
 app.get("/", async (req, res) => {
   const { loggedin, url } = req.session;
   
+  const me = req.query.domain ? `https://${req.query.domain}` : `${req.protocol}${req.hostname}`;
+
+  const [username] = await finger(me);
+    
+  // console.log(await finger(me));
+  if (!username) {
+    res.send(`You need at least one github account linked to https://${domain(me)}.`);
+    return;
+  }    
+
   if (!req.session.loggedin) {
-    
-
-    const me = req.query.domain ? `https://${req.query.domain}` : `${req.protocol}${req.hostname}`;
-  
-    // console.log(me);
-  
-    const [username] = await finger(me);
-    
-    if (!username) {
-      res.send(`You need at least one github account linked to ${me}.`);
-      return;
-    }    
-
     res.send(`
       <h1>Hello, @${username}!</h1>
-      <br>Click <a href="/login">here</a> to login!
+      <br>Click <a href="/login">here</a> to login to https://${domain(me)}!
     `);
     return;
   }
-
-  
-  // console.log(profile);
-
   
   res.send(`
-    You are logged-in as ${url}. <a href="/logout">logout</a>.
+    <h1>Welcome @${me}!</a>
+    
+    <br><br>Click <a href="/logout">here</a> to logout.
+    <br>
     <ul>
       <li><a href="javascript:IdentityProvider.register('${relative(
         req,
