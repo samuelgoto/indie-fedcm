@@ -261,7 +261,7 @@ app.get("/login", async (req, res) => {
   return;
 });
 
-app.use("/test/fedcm.json", function (req, res, next) {
+app.use("/test/fedcm.json", async function (req, res, next) {
     const me = `${req.protocol}://${req.hostname}`;
 
     const {
