@@ -7,7 +7,6 @@ var querystring = require("querystring");
 const session = require("express-session");
 const dns = require("dns");
 
-
 app.use(bodyParser.json());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -31,6 +30,63 @@ function domain(url) {
   return url.replace(/^[^.]+\./g, ""); 
 }
 
+function parse(body) {
+  const me = [];
+  let fullName;
+  let givenName;
+  let familyName;;
+  let photo;
+  let email;
+  let color;
+  let backgroundColor;
+  let username;
+  let indieauth;
+  const parser = new Parser({
+    onopentag(name, attributes) {
+      const { rel, name: value, href, content } = attributes;
+      if (name === "link" && rel === "me") {
+        me.push(href);
+      } else if (name === "link" && rel === "indieauth-metadata") {
+        indieauth = href;
+      } else if (name === "meta" && value === "name") {
+        fullName = content;
+      } else if (name === "meta" && value === "given-name") {
+        givenName = content;
+      } else if (name === "meta" && value === "family-name") {
+        familyName = content;
+      } else if (name === "meta" && value === "email") {
+        email = content;
+      } else if (name === "meta" && value === "photo") {
+        photo = content;
+      } else if (name === "meta" && value === "username") {
+        username = content;
+      } else if (name === "meta" && value === "color") {
+        color = content;
+      } else if (name === "meta" && value === "background-color") {
+        backgroundColor = content;
+      }
+    },
+  });
+  parser.write(body);
+  parser.end();
+  const profile = {
+    me: me,
+    name: fullName,
+    givenName: givenName,    
+    familyName: familyName,    
+    email: email,
+    username: username,
+    photo: photo,    
+    color: color,    
+    backgroundColor: backgroundColor,
+    indieauth: indieauth,
+  };
+
+  // console.log(profile);
+  
+  return profile;
+}
+
 async function finger(url) {
   const me = [];
   
@@ -44,15 +100,18 @@ async function finger(url) {
   
   // console.log(me.flat());
   
+  const profile = {};
+  
   try {
     const response = await fetch(`https://${domain(url)}`);
     const body = await response.text();
-    const links = parseRel(body);
+    const result = parse(body);
+    const {me: links} = result;
+    Object.assign(profile, result);
     me.push(...links);
   } catch (e) {
     // console.log(`Error fetching the HTML page in ${domain}`);
-  }
- 
+  } 
   
   const github = me.filter((url) => {
     try {
@@ -69,7 +128,8 @@ async function finger(url) {
   const usernames = github.map((url) => new URL(url).pathname.substring(1));
   
   // Remove duplicates
-  return [...new Set(usernames)];
+  profile.usernames = [...new Set(usernames)];
+  return profile;
 }
 
 function relative(req, path) {
@@ -123,16 +183,16 @@ app.get("/callback", async (req, res) => {
   // console.log(url);
   const { login, avatar_url, name, blog, email } = await user.json();    
 
-  const usernames = await finger(url);
+  const self = await finger(url);
     
-  if (usernames.length == 0) {
+  if (self.usernames.length == 0) {
     res.send("You need at least one link rel='me' href='https://github.com/username' in ${url}");
     return;
   }
 
-  if (!usernames.includes(login)) {
+  if (!self.usernames.includes(login)) {
     res.send(
-      `${login} isn't included in the list of rel=me usernames ${usernames}`
+      `${login} isn't included in the list of rel=me usernames ${self.usernames}`
     );
     return;
   }
@@ -140,10 +200,13 @@ app.get("/callback", async (req, res) => {
   res.set("Set-Login", "logged-in");
 
   req.session.loggedin = true;
-  req.session.url = url;
-  req.session.username = login;
-  req.session.photo = avatar_url;
-  req.session.name = name;
+  req.session.id = `https://${domain(url)}`;
+  req.session.url = url;  
+  req.session.username = self.username || login;
+  req.session.photo = self.photo || avatar_url;
+  req.session.name = self.name || name;
+  req.session.givenName = self.givenName;
+  req.session.email = self.email || email;
   
   // TODO(goto): it is a bit awkward that I have to send a HTML
   // file just to call IdentityProvider.close(). Maybe we should
@@ -194,20 +257,6 @@ app.get("/login", async (req, res) => {
   return;
 });
 
-function parseRel(body) {
-  const me = [];
-  const parser = new Parser({
-    onopentag(name, { rel, href }) {
-      if (name === "link" && rel === "me") {
-        me.push(href);
-      }
-    },
-  });
-  parser.write(body);
-  parser.end();
-  return me;
-}
-
 app.use("/test/fedcm.json", function (req, res, next) {
   res.send({
     accounts_endpoint: "/accounts",
@@ -238,16 +287,16 @@ app.use("/accounts", (req, res) => {
     return error(res, {});
   }
 
-  const { username, name, email, photo } = req.session;
+  const { id, username, name, givenName, email, photo } = req.session;
 
   res.send({
     accounts: [
       {
-        id: domain(url),
-        account_id: username,
-        email: email ? email : `https://${domain(url)}`,
+        id: id,
+        account_id: id,
+        email: email || id,
         name: name,
-        given_name: name,
+        given_name: givenName,
         picture: photo,
       },
     ],
@@ -278,15 +327,15 @@ app.post("/id_assertion_endpoint", (req, res) => {
 
   const code = Math.random();
 
-  const { username, name, email, photo } = req.session;
+  const { id, username, name, givenName, email, photo } = req.session;
 
   tokens[code] = {
     url: url,
-    id: `https://${domain(url)}`,
-    account_id: username,
-    email: email ? email : `https://${domain(url)}`,
+    id: id,
+    account_id: id,
+    email: email || id,
     name: name,
-    given_name: name,
+    given_name: givenName,
     picture: photo,
   };
 
@@ -339,18 +388,51 @@ app.get("/", async (req, res) => {
   
   const me = req.query.domain ? `https://${req.query.domain}` : `${req.protocol}${req.hostname}`;
 
-  const [username] = await finger(me);
-    
+  const {
+    usernames: [handle],
+    username,
+    name,    
+    givenName,
+    familyName,
+    email,
+    photo,
+    color,
+    backgroundColor,
+    indieauth
+  } = await finger(me);
+  
   // console.log(await finger(me));
-  if (!username) {
+  if (!handle) {
     res.send(`You need at least one github account linked to https://${domain(me)}.`);
     return;
   }    
 
   if (!req.session.loggedin) {
     res.send(`
-      <h1>Hello, @${username}!</h1>
-      <br>Click <a href="/login">here</a> to login to https://${domain(me)}!
+      <h1>Hello!</h1>
+      
+      Here is what we know about you that you declared on <a href="https://${domain(me)}">https://${domain(me)}</a>.
+      
+      <br>
+      
+      <br>Required setup:
+      <ul>
+        <li>Github username: <b>${handle}</b> (required)</li>
+        <li>IndieAuth: <a href="${indieauth}">${indieauth}</a> (required)</li>
+      </ul>
+
+      User Profile (optional):
+      <ul>
+        <li>Name: ${name} (optional)</li>
+        <li>Given name: ${givenName} (optional)</li>
+        <li>Family name: ${familyName} (optional)</li>
+        <li>Email: ${email} (optional)</li>
+        <li>Username: ${username} (optional)</li>
+        <li>Photo: <a href="${photo}">${photo}</a> (optional)</li>
+        <li>Color: ${color} (optional)</li>
+        <li>Background color: ${backgroundColor} (optional)</li>
+      </ul>
+      <br>Click <a href="/login">here</a> to login to https://${domain(me)} as <b>@${handle}</b> at github.com!
     `);
     return;
   }
@@ -394,3 +476,4 @@ const listener = app.listen(process.env.PORT, async () => {
 
   console.log("Your app is listening on port " + listener.address().port);
 });
+
