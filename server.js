@@ -200,7 +200,7 @@ app.get("/callback", async (req, res) => {
   res.set("Set-Login", "logged-in");
 
   req.session.loggedin = true;
-  req.session.id = `https://${domain(url)}`;
+  req.session.domain = `https://${domain(url)}`;
   req.session.url = url;  
   req.session.username = self.username || login;
   req.session.photo = self.photo || avatar_url;
@@ -287,14 +287,14 @@ app.use("/accounts", (req, res) => {
     return error(res, {});
   }
 
-  const { id, username, name, givenName, email, photo } = req.session;
+  const { domain, username, name, givenName, email, photo } = req.session;
 
   res.send({
     accounts: [
       {
-        id: id,
+        id: domain,
         account_id: id,
-        email: email || id,
+        email: domain || email,
         name: name,
         given_name: givenName,
         picture: photo,
@@ -327,13 +327,13 @@ app.post("/id_assertion_endpoint", (req, res) => {
 
   const code = Math.random();
 
-  const { id, username, name, givenName, email, photo } = req.session;
+  const { domain, username, name, givenName, email, photo } = req.session;
 
   tokens[code] = {
     url: url,
-    id: id,
-    account_id: id,
-    email: email || id,
+    domain: domain,
+    account_id: domain,
+    email: email,
     name: name,
     given_name: givenName,
     picture: photo,
@@ -362,15 +362,15 @@ app.post("/indieauth/token_endpoint", (req, res) => {
     return error(res, `Unknown code: ${code}.`);
   }
 
-  const { id, account_id, email, name, given_name, picture } = tokens[code];
+  const { domain, account_id, email, name, given_name, picture } = tokens[code];
 
-  console.log(id);
+  console.log(domain);
 
   res.send({
-    me: id,
+    me: domain,
     profile: {
       name: name,
-      url: id,
+      url: domain,
       photo: picture,
       email: email,
     },
