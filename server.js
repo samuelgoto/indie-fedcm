@@ -262,21 +262,31 @@ app.get("/login", async (req, res) => {
 });
 
 app.use("/test/fedcm.json", function (req, res, next) {
+    const me = `${req.protocol}://${req.hostname}`;
+
+    const {
+	logo,
+	color,
+	backgroundColor,
+    } = await finger(me);
+
+    console.log(`Fetching configURL for ${me}`);
+  
   res.send({
-    accounts_endpoint: "/accounts",
-    id_token_endpoint: "/idtoken_endpoint.json",
-    client_metadata_endpoint: "/client_metadata",
-    id_assertion_endpoint: "/id_assertion_endpoint",
-    revocation_endpoint: "/revoke_endpoint.json",
-    metrics_endpoint: "/metrics_endpoint.json",
-    login_url: "/",
-    branding: {
-      icons: [
-        {
-          url: "https://static.thenounproject.com/png/362206-200.png",
-        },
-      ],
-    },
+      accounts_endpoint: "/accounts",
+      id_token_endpoint: "/idtoken_endpoint.json",
+      client_metadata_endpoint: "/client_metadata",
+      id_assertion_endpoint: "/id_assertion_endpoint",
+      revocation_endpoint: "/revoke_endpoint.json",
+      metrics_endpoint: "/metrics_endpoint.json",
+      login_url: "/",
+      branding: {
+	  background_color: backgroundColor || "green",
+	  color: color || "#FFEEAA",
+	  icons: [{
+              url: logo || "https://static.thenounproject.com/png/362206-200.png",
+	  }],
+      },
   });
 });
 
