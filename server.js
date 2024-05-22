@@ -27,13 +27,15 @@ app.use(
 );
 
 
+function domain(url) {
+  return url.replace(/^[^.]+\./g, ""); 
+}
+
 async function finger(url) {
   const me = [];
   
-  const domain = url.replace(/^[^.]+\./g, "");
-  
   try {
-    const records = await dns.promises.resolveTxt(`me.${domain}`);
+    const records = await dns.promises.resolveTxt(`me.${domain(url)}`);
     me.push(...records.flat());
     // console.log(`Got records from the DNS entry! ${records}`);
   } catch (e) {
@@ -43,7 +45,7 @@ async function finger(url) {
   // console.log(me.flat());
   
   try {
-    const response = await fetch(`https://${domain}`);
+    const response = await fetch(`https://${domain(url)}`);
     const body = await response.text();
     const links = parseRel(body);
     me.push(...links);
@@ -241,9 +243,9 @@ app.use("/accounts", (req, res) => {
   res.send({
     accounts: [
       {
-        id: url,
+        id: domain(url),
         account_id: username,
-        email: email ? email : url,
+        email: email ? email : `@${domain(url)}`,
         name: name,
         given_name: name,
         picture: photo,
@@ -280,9 +282,9 @@ app.post("/id_assertion_endpoint", (req, res) => {
 
   tokens[code] = {
     url: url,
-    id: url,
+    id: `https://${domain(url)}`,
     account_id: username,
-    email: email ? email : url,
+    email: email ? email : `@${domain(url)}`,
     name: name,
     given_name: name,
     picture: photo,
