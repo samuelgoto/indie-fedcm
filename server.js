@@ -41,6 +41,7 @@ function parse(body) {
   let backgroundColor;
   let username;
   let indieauth;
+  let logo;
   const parser = new Parser({
     onopentag(name, attributes) {
       const { rel, name: value, href, content } = attributes;
@@ -48,6 +49,8 @@ function parse(body) {
         me.push(href);
       } else if (name === "link" && rel === "indieauth-metadata") {
         indieauth = href;
+      } else if (name === "link" && rel === "logo") {
+        logo = href;
       } else if (name === "meta" && value === "name") {
         fullName = content;
       } else if (name === "meta" && value === "given-name") {
@@ -76,6 +79,7 @@ function parse(body) {
     familyName: familyName,    
     email: email,
     username: username,
+    logo: logo,  
     photo: photo,    
     color: color,    
     backgroundColor: backgroundColor,
@@ -398,6 +402,7 @@ app.get("/", async (req, res) => {
     familyName,
     email,
     photo,
+    logo,
     color,
     backgroundColor,
     indieauth
@@ -431,6 +436,11 @@ app.get("/", async (req, res) => {
         <li>Email: ${email} (optional)</li>
         <li>Username: ${username} (optional)</li>
         <li>Photo: <a href="${photo}">${photo}</a> (optional)</li>
+      </ul>
+
+      Branding (optional):
+      <ul>
+        <li>Logo: <a href="${logo}">${logo}</a> (optional)</li>
         <li>Color: ${color} (optional)</li>
         <li>Background color: ${backgroundColor} (optional)</li>
       </ul>
