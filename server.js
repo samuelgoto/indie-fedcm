@@ -293,7 +293,7 @@ app.use("/accounts", (req, res) => {
     accounts: [
       {
         id: domain,
-        account_id: id,
+        account_id: domain,
         email: domain || email,
         name: name,
         given_name: givenName,
