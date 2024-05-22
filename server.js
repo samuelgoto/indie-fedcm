@@ -5,6 +5,8 @@ const fetch = require("node-fetch");
 const { Parser } = require("htmlparser2");
 var querystring = require("querystring");
 const session = require("express-session");
+const dns = require("dns");
+
 
 app.use(bodyParser.json());
 app.use(express.json());
@@ -25,7 +27,7 @@ app.use(
 );
 
 function relative(req, path) {
-  return `https://${req.host}${path}`;
+  return `https://${req.hostname}${path}`;
 }
 
 app.get("/:url/foo", async (req, res) => {
@@ -57,7 +59,7 @@ app.get("/callback", async (req, res) => {
   );
 
   if (error) {
-    res.send("Oops, there was an error");
+    res.send(`Oops, there was an error: ${error}`);
     return;
   }
 
@@ -68,9 +70,27 @@ app.get("/callback", async (req, res) => {
   });
 
   const url = state;
-  const response = await fetch(url);
-  const body = await response.text();
-  const me = parseRel(body);
+  
+  const me = [];
+  
+  try {
+    const records = await dns.promises.resolveTxt(`me.${new URL(url).hostname}`);
+    me.push(...records.flat());
+    console.log(`Got records from the DNS entry! ${records}`);
+  } catch (e) {
+    console.log(`Error fetching the DNS records in ${url}`);
+  }
+  
+  // console.log(me.flat());
+  
+  try {
+    const response = await fetch(url);
+    const body = await response.text();
+    const links = parseRel(body);
+    me.push(...links);
+  } catch (e) {
+    console.log(`Error fetching the HTML page in ${url}`);
+  }
 
   const github = me.filter((url) => {
     try {
@@ -80,6 +100,9 @@ app.get("/callback", async (req, res) => {
     }
   });
 
+  // All rel links
+  console.log(me);
+  
   if (github.length == 0) {
     res.send(
       "You need at least one <link rel='me' href='https://github.com/username'> in your url"
@@ -309,7 +332,10 @@ app.get("/", (req, res) => {
 });
 
 // listen for requests :)
-const listener = app.listen(process.env.PORT, () => {
+const listener = app.listen(process.env.PORT, async () => {
+  
+  // console.log(dns.promises); 
+  
   if (!process.env.GITHUB_CLIENT_ID) {
     throw new Error("You need to set a GITHUB_CLIENT_ID environment variable");
   }
