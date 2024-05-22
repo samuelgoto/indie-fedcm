@@ -26,6 +26,50 @@ app.use(
   })
 );
 
+
+async function finger(url) {
+  const me = [];
+  
+  const domain = url.replace(/^[^.]+\./g, "");
+  
+  try {
+    const records = await dns.promises.resolveTxt(`me.${domain}`);
+    me.push(...records.flat());
+    // console.log(`Got records from the DNS entry! ${records}`);
+  } catch (e) {
+    // console.log(`Error fetching the DNS records in ${domain}`);
+  }
+  
+  // console.log(me.flat());
+  
+  try {
+    const response = await fetch(`https://${domain}`);
+    const body = await response.text();
+    const links = parseRel(body);
+    me.push(...links);
+  } catch (e) {
+    // console.log(`Error fetching the HTML page in ${domain}`);
+  }
+ 
+  
+  const github = me.filter((url) => {
+    try {
+      return new URL(url).host == "github.com";
+    } catch (e) {
+      return false;
+    }
+  });
+  
+  if (github.length == 0) {
+    return [];
+  }
+
+  const usernames = github.map((url) => new URL(url).pathname.substring(1));
+  
+  // Remove duplicates
+  return [...new Set(usernames)];
+}
+
 function relative(req, path) {
   return `https://${req.hostname}${path}`;
 }
@@ -74,52 +118,15 @@ app.get("/callback", async (req, res) => {
   // const hostname = req.hostname;
   // var domain = hostname.replace(/^[^.]+\./g, "");
   
-  console.log(url);
-  
-  const domain = (url) => url.replace(/^[^.]+\./g, "");
-  
-  const me = [];
-  
-  try {
-    const records = await dns.promises.resolveTxt(`me.${domain(url)}`);
-    me.push(...records.flat());
-    console.log(`Got records from the DNS entry! ${records}`);
-  } catch (e) {
-    console.log(`Error fetching the DNS records in ${domain(url)}`);
-  }
-  
-  // console.log(me.flat());
-  
-  try {
-    const response = await fetch(`https://${domain(url)}`);
-    const body = await response.text();
-    const links = parseRel(body);
-    me.push(...links);
-  } catch (e) {
-    console.log(`Error fetching the HTML page in ${domain(url)}`);
-  }
+  // console.log(url);
+  const { login, avatar_url, name, blog, email } = await user.json();    
 
-  const github = me.filter((url) => {
-    try {
-      return new URL(url).host == "github.com";
-    } catch (e) {
-      return false;
-    }
-  });
-
-  // All rel links
-  // console.log(me);
-  
-  if (github.length == 0) {
-    res.send(
-      "You need at least one link rel='me' href='https://github.com/username' in ${url}"
-    );
+  const usernames = await finger(url);
+    
+  if (usernames.length == 0) {
+    res.send("You need at least one link rel='me' href='https://github.com/username' in ${url}");
     return;
   }
-
-  const usernames = github.map((url) => new URL(url).pathname.substring(1));
-
-  const { login, avatar_url, name, blog, email } = await user.json();
 
   if (!usernames.includes(login)) {
     res.send(
@@ -325,21 +332,34 @@ app.use("/logout", (req, res) => {
   res.redirect("/");
 });
 
-app.get("/", (req, res) => {
+app.get("/", async (req, res) => {
   const { loggedin, url } = req.session;
-
+  
   if (!req.session.loggedin) {
     
-    console.log(req.hostname);
+
+    const me = req.query.domain ? `https://${req.query.domain}` : `${req.protocol}${req.hostname}`;
+  
+    // console.log(me);
+  
+    const [username] = await finger(me);
     
+    if (!username) {
+      res.send(`You need at least one github account linked to ${me}.`);
+      return;
+    }    
+
     res.send(`
-      You are logged-out. 
-      <br><br>Enter your IndieAuth domain here to login:
-      <br><br><form action='/login'><input name='url'><input type='submit' value='login'></form>
+      <h1>Hello, @${username}!</h1>
+      <br>Click <a href="/login">here</a> to login!
     `);
     return;
   }
 
+  
+  // console.log(profile);
+
+  
   res.send(`
     You are logged-in as ${url}. <a href="/logout">logout</a>.
     <ul>
