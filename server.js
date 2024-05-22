@@ -245,7 +245,7 @@ app.use("/accounts", (req, res) => {
       {
         id: domain(url),
         account_id: username,
-        email: email ? email : `@${domain(url)}`,
+        email: email ? email : `https://${domain(url)}`,
         name: name,
         given_name: name,
         picture: photo,
@@ -284,7 +284,7 @@ app.post("/id_assertion_endpoint", (req, res) => {
     url: url,
     id: `https://${domain(url)}`,
     account_id: username,
-    email: email ? email : `@${domain(url)}`,
+    email: email ? email : `https://${domain(url)}`,
     name: name,
     given_name: name,
     picture: photo,
