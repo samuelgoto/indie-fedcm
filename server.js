@@ -42,7 +42,7 @@ app.use("/.well-known/web-identity", async (req, res) => {
 });
 
 app.get("/callback", async (req, res) => {
-  const { code, state } = req.query;
+  const { code, url } = req.query;
 
   const params = querystring.stringify({
     client_id: process.env.GITHUB_CLIENT_ID,
@@ -69,27 +69,34 @@ app.get("/callback", async (req, res) => {
     },
   });
 
-  const url = state;
+  // const url = state;
+  
+  // const hostname = req.hostname;
+  // var domain = hostname.replace(/^[^.]+\./g, "");
+  
+  console.log(url);
+  
+  const domain = (url) => url.replace(/^[^.]+\./g, "");
   
   const me = [];
   
   try {
-    const records = await dns.promises.resolveTxt(`me.${new URL(url).hostname}`);
+    const records = await dns.promises.resolveTxt(`me.${domain(url)}`);
     me.push(...records.flat());
     console.log(`Got records from the DNS entry! ${records}`);
   } catch (e) {
-    console.log(`Error fetching the DNS records in ${url}`);
+    console.log(`Error fetching the DNS records in ${domain(url)}`);
   }
   
   // console.log(me.flat());
   
   try {
-    const response = await fetch(url);
+    const response = await fetch(`https://${domain(url)}`);
     const body = await response.text();
     const links = parseRel(body);
     me.push(...links);
   } catch (e) {
-    console.log(`Error fetching the HTML page in ${url}`);
+    console.log(`Error fetching the HTML page in ${domain(url)}`);
   }
 
   const github = me.filter((url) => {
@@ -101,11 +108,11 @@ app.get("/callback", async (req, res) => {
   });
 
   // All rel links
-  console.log(me);
+  // console.log(me);
   
   if (github.length == 0) {
     res.send(
-      "You need at least one <link rel='me' href='https://github.com/username'> in your url"
+      "You need at least one link rel='me' href='https://github.com/username' in ${url}"
     );
     return;
   }
@@ -143,17 +150,31 @@ app.get("/callback", async (req, res) => {
   `);
 });
 
-app.get("/login", async (req, res) => {
-  const { url } = req.query;
+app.get("/github/callback", async (req, res) => {
+  const { code, state } = req.query;
 
-  if (!url) {
-    res.send("Missing url parameter");
+  if (!code) {
+    res.send("Ooops, something went wrong: code not received.");
     return;
   }
+  
+  let url = state;
+  
+  const params = querystring.stringify({
+    code: code,
+    url: url
+  });
+  
+  res.redirect(`${url}/callback?${params}`);
+});
 
+app.get("/login", async (req, res) => {
+  const url = req.query.url ? req.query.url : `${req.protocol}://${req.hostname}`;
+
+  console.log(`${process.env.GITHUB_REDIRECT_DOMAIN}/github/callback`);
   const params = querystring.stringify({
     client_id: process.env.GITHUB_CLIENT_ID,
-    redirect_uri: relative(req, "/callback"),
+    redirect_uri: `${process.env.GITHUB_REDIRECT_DOMAIN}/github/callback`,
     scope: ["read:user", "user:email"].join(" "), // space seperated string
     allow_signup: true,
     state: url,
@@ -308,6 +329,9 @@ app.get("/", (req, res) => {
   const { loggedin, url } = req.session;
 
   if (!req.session.loggedin) {
+    
+    console.log(req.hostname);
+    
     res.send(`
       You are logged-out. 
       <br><br>Enter your IndieAuth domain here to login:
