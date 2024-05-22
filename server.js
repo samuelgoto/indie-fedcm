@@ -364,6 +364,8 @@ app.post("/indieauth/token_endpoint", (req, res) => {
 
   const { id, account_id, email, name, given_name, picture } = tokens[code];
 
+  console.log(id);
+
   res.send({
     me: id,
     profile: {
