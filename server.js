@@ -388,7 +388,7 @@ app.use("/logout", (req, res) => {
 app.get("/", async (req, res) => {
   const { loggedin, url } = req.session;
   
-  const me = req.query.domain ? `https://${req.query.domain}` : `${req.protocol}${req.hostname}`;
+  const me = req.query.domain ? `https://${req.query.domain}` : `${req.protocol}://${req.hostname}`;
 
   const {
     usernames: [handle],
@@ -440,7 +440,7 @@ app.get("/", async (req, res) => {
   }
   
   res.send(`
-    <h1>Welcome @${me}!</a>
+    <h1>Welcome ${me}!</h1>
     
     <br><br>Click <a href="/logout">here</a> to logout.
     <br>
