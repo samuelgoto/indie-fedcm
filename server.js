@@ -193,8 +193,8 @@ app.get("/callback", async (req, res) => {
     res.send("You need at least one link rel='me' href='https://github.com/username' in ${url}");
     return;
   }
-
-  if (!self.usernames.includes(login)) {
+  
+  if (!process.env.DISABLE_GITHUB_CHECK && !self.usernames.includes(login)) {
     res.send(
       `${login} isn't included in the list of rel=me usernames ${self.usernames}`
     );
