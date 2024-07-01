@@ -280,6 +280,7 @@ app.use("/test/fedcm.json", async function (req, res, next) {
       revocation_endpoint: "/revoke_endpoint.json",
       metrics_endpoint: "/metrics_endpoint.json",
       login_url: "/",
+      types: ["indieauth"],
       branding: {
 	  background_color: backgroundColor || "green",
 	  color: color || "#FFEEAA",
