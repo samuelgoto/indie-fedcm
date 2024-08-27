@@ -397,7 +397,7 @@ app.use(express.static("public"));
 app.use("/logout", (req, res) => {
   res.set("Set-Login", "logged-out");
   req.session.destroy();
-  res.redirect("/?logout");
+  res.redirect("/?logout=true");
 });
 
 app.get("/", async (req, res) => {
