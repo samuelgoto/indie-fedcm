@@ -426,6 +426,11 @@ app.get("/", async (req, res) => {
   }    
 
   if (!req.session.loggedin) {
+
+    res.redirect("/login");
+
+    return;
+
     res.send(`
       <h1>Hello!</h1>
       
