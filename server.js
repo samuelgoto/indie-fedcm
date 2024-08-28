@@ -434,34 +434,6 @@ app.get("/", async (req, res) => {
 
 
     res.send(`
-      <h1>Hello!</h1>
-      
-      Here is what we know about you that you declared on <a href="https://${domain(me)}">https://${domain(me)}</a>.
-      
-      <br>
-      
-      <br>Required setup:
-      <ul>
-        <li>Github username: <b>${handle}</b> (required)</li>
-        <li>IndieAuth: <a href="${indieauth}">${indieauth}</a> (required)</li>
-      </ul>
-
-      User Profile (optional):
-      <ul>
-        <li>Name: ${name} (optional)</li>
-        <li>Given name: ${givenName} (optional)</li>
-        <li>Family name: ${familyName} (optional)</li>
-        <li>Email: ${email} (optional)</li>
-        <li>Username: ${username} (optional)</li>
-        <li>Photo: <a href="${photo}">${photo}</a> (optional)</li>
-      </ul>
-
-      Branding (optional):
-      <ul>
-        <li>Logo: <a href="${logo}">${logo}</a> (optional)</li>
-        <li>Color: ${color} (optional)</li>
-        <li>Background color: ${backgroundColor} (optional)</li>
-      </ul>
       <br>Click <a href="/login">here</a> to login to https://${domain(me)} as <b>@${handle}</b> at github.com!
     `);
     return;
@@ -472,6 +444,35 @@ app.get("/", async (req, res) => {
     
     <br><br>Click <a href="/logout">here</a> to logout.
     <br>
+      
+    <br>Here is what we know about you that you declared on <a href="https://${domain(me)}">https://${domain(me)}</a>.
+      
+    <br>
+      
+    <br>Required setup:
+    <ul>
+      <li>Github username: <b>${handle}</b> (required)</li>
+      <li>IndieAuth: <a href="${indieauth}">${indieauth}</a> (required)</li>
+    </ul>
+
+    <br>User Profile (optional):
+    <ul>
+      <li>Name: ${name} (optional)</li>
+      <li>Given name: ${givenName} (optional)</li>
+      <li>Family name: ${familyName} (optional)</li>
+      <li>Email: ${email} (optional)</li>
+      <li>Username: ${username} (optional)</li>
+      <li>Photo: <a href="${photo}">${photo}</a> (optional)</li>
+    </ul>
+
+    <br>Branding (optional):
+    <ul>
+      <li>Logo: <a href="${logo}">${logo}</a> (optional)</li>
+      <li>Color: ${color} (optional)</li>
+      <li>Background color: ${backgroundColor} (optional)</li>
+    </ul>
+
+    <br>Register as an IdP
     <ul>
       <li><a href="javascript:IdentityProvider.register('${relative(
         req,
