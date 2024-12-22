@@ -340,7 +340,7 @@ app.post("/id_assertion_endpoint", (req, res) => {
 
   const subject = req.body["account_id"];
 
-  const code = Math.random();
+  const code = new String(Math.random());
 
   const { domain, username, name, givenName, email, photo } = req.session;
 
