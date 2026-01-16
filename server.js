@@ -222,11 +222,11 @@ app.get("/callback", async (req, res) => {
       IdentityProvider.close();
       await navigator.login.setStatus("logged-in", {
         accounts: [{
-          id: req.session.username,
-          name: req.session.name,
-          givenName: req.session.givenName,
-          email: req.session.email,
-          picture: req.session.photo
+          id: ${req.session.username},
+          name: ${req.session.name},
+          givenName: ${req.session.givenName},
+          email: ${req.session.email},
+          picture: ${req.session.photo}
         }]
       });
     }
