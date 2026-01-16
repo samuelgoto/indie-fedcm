@@ -201,7 +201,7 @@ app.get("/callback", async (req, res) => {
     return;
   }
 
-  res.set("Set-Login", "logged-in");
+  // res.set("Set-Login", "logged-in");
 
   req.session.loggedin = true;
   req.session.domain = `https://${domain(url)}`;
@@ -216,10 +216,19 @@ app.get("/callback", async (req, res) => {
   // file just to call IdentityProvider.close(). Maybe we should
   // have a HTTP header version of it.
   res.send(`
-  <script>
+  <script type="module">
     if (IdentityProvider) {
       // Signal to the browser that the user has signed in.
-      IdentityProvider.close(); 
+      IdentityProvider.close();
+      await navigator.login.setStatus("logged-in", {
+        accounts: [{
+          id: req.session.username,
+          name: req.session.name,
+          givenName: req.session.givenName,
+          email: req.session.email,
+          picture: req.session.photo
+        }]
+      });
     }
     window.location.href = "/";
   </script>
