@@ -284,7 +284,7 @@ app.use("/test/fedcm.json", async function (req, res, next) {
   res.send({
       accounts_endpoint: "/accounts",
       id_token_endpoint: "/idtoken_endpoint.json",
-      client_metadata_endpoint: "/client_metadata",
+      // client_metadata_endpoint: "/client_metadata",
       id_assertion_endpoint: "/id_assertion_endpoint",
       revocation_endpoint: "/revoke_endpoint.json",
       metrics_endpoint: "/metrics_endpoint.json",
